@@ -1,0 +1,2 @@
+rootProject.name='DrawingGift'
+include ':app'
