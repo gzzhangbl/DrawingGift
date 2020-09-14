@@ -1,12 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical">
 
     <com.yy.drawinggift.GiftDrawView
         android:id="@+id/draw_view"
         android:layout_width="match_parent"
         android:layout_height="300dp" />
 
+    <Button
+        android:id="@+id/btb_clear"
+        android:layout_width="match_parent"
+        android:layout_height="45dp"
+        android:text="清空" />
+
+    <Button
+        android:id="@+id/btb_undo"
+        android:layout_width="match_parent"
+        android:layout_height="45dp"
+        android:layout_marginTop="10dp"
+        android:text="撤销" />
+
+    <Button
+        android:id="@+id/btb_replay"
+        android:layout_width="match_parent"
+        android:layout_height="45dp"
+        android:layout_marginTop="10dp"
+        android:text="重放" />
 </LinearLayout>

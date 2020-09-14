@@ -13,8 +13,19 @@ class MainActivity : AppCompatActivity() {
         draw_view.setIconBitMap(
             BitmapFactory.decodeResource(
                 resources,
-                R.drawable.vs_image
+                R.drawable.badge_no2
             )
         )
+        btb_clear.setOnClickListener {
+            draw_view.clearBoard()
+        }
+
+        btb_undo.setOnClickListener {
+
+        }
+        btb_replay.setOnClickListener {
+            draw_view.clearBoard()
+            draw_view.replay()
+        }
     }
 }
