@@ -11,6 +11,7 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
+import androidx.core.animation.doOnEnd
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -20,7 +21,6 @@ class GiftDrawView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr), IGiftDrawView {
 
     companion object {
-
         const val TAG = "GiftDrawView"
         const val ACTION_DOWN = 1
         const val ACTION_MOVE = 2
@@ -50,7 +50,24 @@ class GiftDrawView @JvmOverloads constructor(
     private var isDrawing = true
     private var isDisappear = false
     private var isClear = false
-    private val scaleAnimator = ValueAnimator.ofFloat(1.0F, 1.5F)
+    private val mDisappearPaint = Paint()
+    private val scaleAnimator by lazy {
+        ValueAnimator.ofFloat(1.0F, 2F).apply {
+            duration = 800
+            addUpdateListener {
+                val scale = it.animatedValue as Float
+                mDisappearPaint.alpha = ((2.0F - scale) * 255).toInt()
+                giftListNodes.forEach { list ->
+                    list.forEach { node ->
+                        node.matrix.reset()
+                        node.matrix.preTranslate(node.x - iconWidth / 2F, node.y - iconHeight / 2F)
+                        node.matrix.postScale(scale, scale, node.x, node.y)
+                    }
+                }
+                invalidate()
+            }
+        }
+    }
     private lateinit var giftNumListener: (Int) -> Unit
 
     private val mHandler = object : Handler(Looper.getMainLooper()) {
@@ -128,33 +145,14 @@ class GiftDrawView @JvmOverloads constructor(
     }
 
     private fun touchUp(x: Float, y: Float) {
-        setGiftRectIfNeed()
-        if (mGiftRect.contains(x, y)) {
-            mX = x
-            mY = y
-            mCurrentNode = GiftNode(mX, mY, iconUrl)
-            giftNodeLine!!.add(mCurrentNode!!)
-            invalidate()
-        }
+        touchMove(x, y)
         giftListNodes.add(giftNodeLine!!)
         mCurrentNode = null
     }
 
-
     private fun handleDisappear() {
         isDisappear = true
-        scaleAnimator.duration = 800
-        scaleAnimator.addUpdateListener {
-            val scale = it.animatedValue as Float
-            giftListNodes.forEach { list ->
-                list.forEach { node ->
-                    node.matrix.setTranslate(node.x - iconWidth / 2F, node.y - iconHeight / 2F)
-                    node.matrix.postScale(scale, scale)
-                }
-            }
-            invalidate()
-        }
-        scaleAnimator.start()
+        scaleAnimator?.start()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -235,7 +233,7 @@ class GiftDrawView @JvmOverloads constructor(
         giftListNodes.forEach {
             it.forEach { node ->
                 canvas?.save()
-                canvas?.drawBitmap(iconBitmap, node.matrix, null)
+                canvas?.drawBitmap(iconBitmap, node.matrix, mDisappearPaint)
                 canvas?.restore()
             }
         }
@@ -254,20 +252,20 @@ class GiftDrawView @JvmOverloads constructor(
     }
 
     override fun setIconUrl(iconUrl: String) {
+        //设置url
     }
 
     override fun setIsDrawing(isDrawing: Boolean) {
         this.isDrawing = isDrawing
     }
 
-    override fun clearBoard(isClearData: Boolean) {
+    override fun clearBoard() {
         isDrawing = true
         isClear = true
         invalidate()
     }
 
     override fun replay() {
-        clearBoard()
         thread {
             isDrawing = false
             isDisappear = false
@@ -280,6 +278,13 @@ class GiftDrawView @JvmOverloads constructor(
             }
             mHandler.sendEmptyMessage(ACTION_DISAPPEAR)
         }
+    }
+
+    override fun clearData() {
+        giftListNodes.forEach {
+            it.clear()
+        }
+        giftListNodes.clear()
     }
 
     private fun checkAvailable(): Boolean {
@@ -300,5 +305,12 @@ class GiftDrawView @JvmOverloads constructor(
 
     private fun emptyGiftRect() {
         mGiftRect.setEmpty()
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        scaleAnimator.cancel()
+        backgroundBitmap?.recycle()
+        iconBitmap?.recycle()
     }
 }

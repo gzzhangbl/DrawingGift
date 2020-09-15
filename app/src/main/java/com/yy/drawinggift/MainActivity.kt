@@ -15,9 +15,11 @@ class MainActivity : AppCompatActivity() {
                 resources,
                 R.drawable.bangbangtang
             )
+
         )
         btb_clear.setOnClickListener {
             draw_view.clearBoard()
+            draw_view.clearData()
             draw_view.setIsDrawing(true)
         }
 
@@ -25,6 +27,7 @@ class MainActivity : AppCompatActivity() {
 
         }
         btb_replay.setOnClickListener {
+            draw_view.clearBoard()
             draw_view.replay()
         }
     }

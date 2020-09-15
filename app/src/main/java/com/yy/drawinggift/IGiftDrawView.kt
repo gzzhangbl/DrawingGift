@@ -21,10 +21,12 @@ interface IGiftDrawView {
     /**
      * 清屏
      */
-    fun clearBoard(isClearData: Boolean = true)
+    fun clearBoard()
 
     /**
      * 重放
      */
     fun replay()
+
+    fun clearData()
 }
