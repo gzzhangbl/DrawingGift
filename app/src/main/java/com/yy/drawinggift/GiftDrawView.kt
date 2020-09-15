@@ -25,6 +25,7 @@ class GiftDrawView @JvmOverloads constructor(
         const val ACTION_DOWN = 1
         const val ACTION_MOVE = 2
         const val ACTION_UP = 3
+        const val ACTION_DRAWING = 9
         const val ACTION_DISAPPEAR = 10
     }
 
@@ -44,7 +45,6 @@ class GiftDrawView @JvmOverloads constructor(
     private var maxDistance = 8
     private var pathMeasure = PathMeasure()
     private var path = Path()
-
     private var backgroundBitmap: Bitmap? = null
     private val mCanvas = Canvas()
     private var isDrawing = true
@@ -83,6 +83,7 @@ class GiftDrawView @JvmOverloads constructor(
                     val point = msg.obj as PointF
                     touchUp(point.x, point.y)
                 }
+                ACTION_DRAWING -> invalidate()
                 ACTION_DISAPPEAR -> handleDisappear()
             }
         }
@@ -193,13 +194,12 @@ class GiftDrawView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
+        Log.d(TAG, "ondraw $isDrawing $isClear $isDisappear")
         if (isDrawing) {
             if (isClear) {
-                initBackgroundBitmap()
                 isClear = false
-                backgroundBitmap?.let {
-                    canvas?.drawBitmap(it, 0F, 0F, null)
-                }
+                initBackgroundBitmap()
+                canvas?.drawBitmap(backgroundBitmap, 0F, 0F, null)
             } else {
                 drawIcon(canvas, mCurrentNode)
             }
@@ -265,18 +265,38 @@ class GiftDrawView @JvmOverloads constructor(
         invalidate()
     }
 
+    override fun undo(): Boolean {
+        val lastIndex = giftListNodes.lastIndex
+        if (lastIndex == -1) {
+            return false
+        }
+        giftListNodes.removeAt(lastIndex)
+//        clearBoard()
+        doDrawing(false)
+        return true
+    }
+
     override fun replay() {
         thread {
             isDrawing = false
             isDisappear = false
-            giftListNodes.forEach {
-                it.forEach { node ->
-                    this@GiftDrawView.mCurrentNode = node
-                    this@GiftDrawView.postInvalidate()
+            doDrawing(true)
+            mHandler.sendEmptyMessage(ACTION_DISAPPEAR)
+        }
+    }
+
+    private fun doDrawing(isInterval: Boolean = true) {
+        giftListNodes.forEach {
+            it.forEach { node ->
+                mCurrentNode = node
+                if (isInterval) {
+                    postInvalidate()
                     Thread.sleep(50)
+                } else {
+                    drawIcon(mCanvas, node)
+                    postInvalidate()
                 }
             }
-            mHandler.sendEmptyMessage(ACTION_DISAPPEAR)
         }
     }
 

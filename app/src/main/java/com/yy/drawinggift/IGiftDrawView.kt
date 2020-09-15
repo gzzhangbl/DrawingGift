@@ -23,10 +23,16 @@ interface IGiftDrawView {
      */
     fun clearBoard()
 
+    fun undo(): Boolean
+
     /**
      * 重放
      */
     fun replay()
 
+    /**
+     * 清理数据
+     */
     fun clearData()
+
 }

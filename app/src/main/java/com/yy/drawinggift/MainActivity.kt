@@ -19,12 +19,13 @@ class MainActivity : AppCompatActivity() {
         )
         btb_clear.setOnClickListener {
             draw_view.clearBoard()
-            draw_view.clearData()
+//            draw_view.clearData()
             draw_view.setIsDrawing(true)
         }
 
         btb_undo.setOnClickListener {
 
+            draw_view.undo()
         }
         btb_replay.setOnClickListener {
             draw_view.clearBoard()
