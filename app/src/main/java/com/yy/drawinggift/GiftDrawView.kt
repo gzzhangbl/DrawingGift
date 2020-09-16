@@ -6,15 +6,14 @@ import android.graphics.*
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
-import android.provider.DocumentsContract
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import androidx.core.animation.doOnEnd
 import kotlin.concurrent.thread
 import kotlin.math.abs
-import kotlin.math.sqrt
+import kotlin.math.atan2
+
 
 class GiftDrawView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -108,22 +107,29 @@ class GiftDrawView @JvmOverloads constructor(
 
     private fun touchMove(x: Float, y: Float) {
         setGiftRectIfNeed()
-        val rect = RectF(
-            mX - iconWidth + maxDistance, mY - iconHeight + maxDistance,
-            mX + iconWidth - maxDistance,
-            mY + iconHeight - maxDistance
-        )
-        if (rect.contains(x, y)) {
+        if (abs(abs(abs(x - mX)) - iconWidth.toFloat()) < maxDistance / 4
+            && abs(abs(y - mY) - iconHeight.toFloat()) < maxDistance / 4
+        ) {
+            Log.d(TAG, "in area node $x  $y")
+            if (mGiftRect.contains(x, y)) {
+                mX = x
+                mY = y
+                GiftNode(mX, mY, iconUrl).let {
+                    giftNodeLine!!.add(it)
+                    drawIcon(it)
+                }
+                invalidate()
+            }
             return
         }
-        if (abs(x - mX) > iconWidth || abs(y - mY) > iconHeight) {
+        if (abs(x - mX) > iconWidth + maxDistance || abs(y - mY) > iconHeight + maxDistance) {
             path.reset()
             path.moveTo(mX, mY)
             path.quadTo((mX + x) / 2, (mY + y) / 2, x, y)
             pathMeasure.setPath(path, false)
             var length = pathMeasure.length
-            var pos = floatArrayOf(x, y)
-            while (abs(pos[0] - mX) > iconWidth - maxDistance || abs(pos[1] - mY) > iconHeight - maxDistance) {
+            val pos = floatArrayOf(x, y)
+            while (abs(pos[0] - mX) > iconWidth || abs(pos[1] - mY) > iconHeight) {
                 length -= 2
                 pathMeasure.getPosTan(length, pos, null)
             }
@@ -136,17 +142,6 @@ class GiftDrawView @JvmOverloads constructor(
                 }
                 invalidate()
                 Log.d(TAG, "measure ${pos[0]} ${pos[1]}")
-            }
-        } else {
-            if (mGiftRect.contains(x, y)) {
-                mX = x
-                mY = y
-                Log.d(TAG, "event $x $y")
-                GiftNode(mX, mY, iconUrl).let {
-                    giftNodeLine!!.add(it)
-                    drawIcon(it)
-                }
-                invalidate()
             }
         }
     }
