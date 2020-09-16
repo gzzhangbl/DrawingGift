@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         btb_undo.setOnClickListener {
-
+//            draw_view.clearBoard()
             draw_view.undo()
         }
         btb_replay.setOnClickListener {

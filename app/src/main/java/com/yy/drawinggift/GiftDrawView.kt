@@ -39,7 +39,8 @@ class GiftDrawView @JvmOverloads constructor(
     private var mWidth = 0
     private var mHeight = 0
     private var mGiftRect = RectF()
-    private var mCurrentNode: GiftNode? = null
+
+    //    private var mCurrentNode: GiftNode? = null
     private var iconWidth = 0
     private var iconHeight = 0
     private var maxDistance = 8
@@ -99,8 +100,10 @@ class GiftDrawView @JvmOverloads constructor(
         mY = if (mY < halfIcHeight) halfIcHeight else mY
         mY = if (mY > mHeight - halfIcHeight) mHeight - halfIcHeight else mY
         giftNodeLine = mutableListOf()
-        mCurrentNode = GiftNode(mX, mY, iconUrl)
-        giftNodeLine!!.add(mCurrentNode!!)
+        GiftNode(mX, mY, iconUrl).let {
+            giftNodeLine!!.add(it!!)
+            drawIcon(it!!)
+        }
         invalidate()
     }
 
@@ -121,15 +124,17 @@ class GiftDrawView @JvmOverloads constructor(
             pathMeasure.setPath(path, false)
             var length = pathMeasure.length
             var pos = floatArrayOf(x, y)
-            while (abs(pos[0] - mX) > iconWidth || abs(pos[1] - mY) > iconHeight) {
+            while (abs(pos[0] - mX) > iconWidth - maxDistance || abs(pos[1] - mY) > iconHeight - maxDistance) {
                 length -= 2
                 pathMeasure.getPosTan(length, pos, null)
             }
             if (mGiftRect.contains(pos[0], pos[1])) {
                 mX = pos[0]
                 mY = pos[1]
-                mCurrentNode = GiftNode(mX, mY, iconUrl)
-                giftNodeLine!!.add(mCurrentNode!!)
+                GiftNode(mX, mY, iconUrl).let {
+                    giftNodeLine!!.add(it)
+                    drawIcon(it)
+                }
                 invalidate()
                 Log.d(TAG, "measure ${pos[0]} ${pos[1]}")
             }
@@ -138,8 +143,10 @@ class GiftDrawView @JvmOverloads constructor(
                 mX = x
                 mY = y
                 Log.d(TAG, "event $x $y")
-                mCurrentNode = GiftNode(mX, mY, iconUrl)
-                giftNodeLine!!.add(mCurrentNode!!)
+                GiftNode(mX, mY, iconUrl).let {
+                    giftNodeLine!!.add(it)
+                    drawIcon(it)
+                }
                 invalidate()
             }
         }
@@ -148,7 +155,6 @@ class GiftDrawView @JvmOverloads constructor(
     private fun touchUp(x: Float, y: Float) {
         touchMove(x, y)
         giftListNodes.add(giftNodeLine!!)
-        mCurrentNode = null
     }
 
     private fun handleDisappear() {
@@ -194,18 +200,21 @@ class GiftDrawView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
-        Log.d(TAG, "ondraw $isDrawing $isClear $isDisappear")
         if (isDrawing) {
             if (isClear) {
                 isClear = false
                 initBackgroundBitmap()
                 canvas?.drawBitmap(backgroundBitmap, 0F, 0F, null)
             } else {
-                drawIcon(canvas, mCurrentNode)
+                backgroundBitmap?.let {
+                    canvas?.drawBitmap(it, 0F, 0F, null)
+                }
             }
         } else {
             if (!isDisappear) {
-                drawIcon(canvas, mCurrentNode)
+                backgroundBitmap?.let {
+                    canvas?.drawBitmap(it, 0F, 0F, null)
+                }
             } else {
                 drawIconDisappear(canvas)
             }
@@ -213,19 +222,15 @@ class GiftDrawView @JvmOverloads constructor(
 
     }
 
-    private fun drawIcon(canvas: Canvas?, giftNode: GiftNode?) {
-        giftNode?.let {
+    private fun drawIcon(giftNode: GiftNode) {
+        giftNode.let {
             iconBitmap?.let { icon ->
                 it.matrix.reset()
                 it.matrix.postTranslate(it.x - iconWidth / 2F, it.y - iconHeight / 2F)
                 mCanvas.drawBitmap(
-                    icon, it.matrix,
-                    null
+                    icon, it.matrix, null
                 )
             }
-        }
-        backgroundBitmap?.let {
-            canvas?.drawBitmap(it, 0F, 0F, null)
         }
     }
 
@@ -271,8 +276,15 @@ class GiftDrawView @JvmOverloads constructor(
             return false
         }
         giftListNodes.removeAt(lastIndex)
-//        clearBoard()
-        doDrawing(false)
+        thread {
+            initBackgroundBitmap()
+            giftListNodes.forEach {
+                it.forEach { node ->
+                    drawIcon(node)
+                }
+            }
+            mHandler.sendEmptyMessage(ACTION_DRAWING)
+        }
         return true
     }
 
@@ -280,23 +292,14 @@ class GiftDrawView @JvmOverloads constructor(
         thread {
             isDrawing = false
             isDisappear = false
-            doDrawing(true)
-            mHandler.sendEmptyMessage(ACTION_DISAPPEAR)
-        }
-    }
-
-    private fun doDrawing(isInterval: Boolean = true) {
-        giftListNodes.forEach {
-            it.forEach { node ->
-                mCurrentNode = node
-                if (isInterval) {
+            giftListNodes.forEach {
+                it.forEach { node ->
+                    drawIcon(node)
                     postInvalidate()
                     Thread.sleep(50)
-                } else {
-                    drawIcon(mCanvas, node)
-                    postInvalidate()
                 }
             }
+            mHandler.sendEmptyMessage(ACTION_DISAPPEAR)
         }
     }
 
