@@ -4,6 +4,7 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import android.os.Message
 import android.util.AttributeSet
@@ -24,8 +25,9 @@ class GiftDrawView @JvmOverloads constructor(
         const val ACTION_DOWN = 1
         const val ACTION_MOVE = 2
         const val ACTION_UP = 3
-        const val ACTION_DRAWING = 9
-        const val ACTION_DISAPPEAR = 10
+        const val ACTION_UNDO = 4
+        const val ACTION_DRAWING = 5
+        const val ACTION_REPLAY = 6
     }
 
     private var iconBitmap: Bitmap? = null
@@ -69,27 +71,44 @@ class GiftDrawView @JvmOverloads constructor(
     }
     private lateinit var giftNumListener: (Int) -> Unit
 
-    private val mHandler = object : Handler(Looper.getMainLooper()) {
-        override fun handleMessage(msg: Message?) {
-            super.handleMessage(msg)
-            when (msg?.what) {
-                ACTION_DOWN -> touchDown()
-                ACTION_MOVE -> {
-                    val point = msg.obj as PointF
-                    touchMove(point.x, point.y)
+    private val handleNodeThread by lazy {
+        HandlerThread(TAG).apply {
+            start()
+        }
+    }
+
+    private val mHandler by lazy {
+        object : Handler(handleNodeThread.looper) {
+            override fun handleMessage(msg: Message?) {
+                super.handleMessage(msg)
+                when (msg?.what) {
+                    ACTION_DOWN -> {
+                        val point = msg.obj as PointF
+                        touchDown(point.x, point.y)
+                    }
+                    ACTION_MOVE -> {
+                        val point = msg.obj as PointF
+                        touchMove(point.x, point.y)
+                    }
+                    ACTION_UP -> {
+                        val point = msg.obj as PointF
+                        touchUp(point.x, point.y)
+                    }
+                    ACTION_DRAWING -> {
+                        invalidate()
+                    }
+                    ACTION_UNDO -> undoDraw()
+                    ACTION_REPLAY -> doReplay()
                 }
-                ACTION_UP -> {
-                    val point = msg.obj as PointF
-                    touchUp(point.x, point.y)
-                }
-                ACTION_DRAWING -> invalidate()
-                ACTION_DISAPPEAR -> handleDisappear()
             }
         }
     }
 
-    private fun touchDown() {
+
+    private fun touchDown(x: Float, y: Float) {
         Log.d(TAG, "touchDown")
+        mX = x
+        mY = y
         val halfIcWidth = iconWidth / 2F
         val halfIcHeight = iconHeight / 2F
         //边界检测
@@ -102,7 +121,7 @@ class GiftDrawView @JvmOverloads constructor(
             giftNodeLine!!.add(it)
             drawIcon(it)
         }
-        invalidate()
+        postInvalidate()
     }
 
     private fun touchMove(x: Float, y: Float) {
@@ -118,7 +137,7 @@ class GiftDrawView @JvmOverloads constructor(
                     giftNodeLine!!.add(it)
                     drawIcon(it)
                 }
-                invalidate()
+                postInvalidate()
             }
             return
         }
@@ -140,7 +159,7 @@ class GiftDrawView @JvmOverloads constructor(
                     giftNodeLine!!.add(it)
                     drawIcon(it)
                 }
-                invalidate()
+                postInvalidate()
                 Log.d(TAG, "measure ${pos[0]} ${pos[1]}")
             }
         }
@@ -149,11 +168,6 @@ class GiftDrawView @JvmOverloads constructor(
     private fun touchUp(x: Float, y: Float) {
         touchMove(x, y)
         giftListNodes.add(giftNodeLine!!)
-    }
-
-    private fun handleDisappear() {
-        isDisappear = true
-        scaleAnimator?.start()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -175,9 +189,9 @@ class GiftDrawView @JvmOverloads constructor(
         }
         when (event?.action) {
             MotionEvent.ACTION_DOWN -> {
-                mX = event.x
-                mY = event.y
-                mHandler.sendEmptyMessage(ACTION_DOWN)
+                mHandler.sendMessage(
+                    mHandler.obtainMessage(ACTION_DOWN, PointF(event.x, event.y))
+                )
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
@@ -270,31 +284,36 @@ class GiftDrawView @JvmOverloads constructor(
             return false
         }
         giftListNodes.removeAt(lastIndex)
-        thread {
-            initBackgroundBitmap()
-            giftListNodes.forEach {
-                it.forEach { node ->
-                    drawIcon(node)
-                }
-            }
-            mHandler.sendEmptyMessage(ACTION_DRAWING)
-        }
+        mHandler.sendEmptyMessage(ACTION_UNDO)
         return true
     }
 
-    override fun replay() {
-        thread {
-            isDrawing = false
-            isDisappear = false
-            giftListNodes.forEach {
-                it.forEach { node ->
-                    drawIcon(node)
-                    postInvalidate()
-                    Thread.sleep(50)
-                }
+    private fun undoDraw() {
+        initBackgroundBitmap()
+        giftListNodes.forEach {
+            it.forEach { node ->
+                drawIcon(node)
             }
-            mHandler.sendEmptyMessage(ACTION_DISAPPEAR)
         }
+        postInvalidate()
+    }
+
+    override fun replay() {
+        mHandler.sendEmptyMessage(ACTION_REPLAY)
+    }
+
+    private fun doReplay() {
+        isDrawing = false
+        isDisappear = false
+        giftListNodes.forEach {
+            it.forEach { node ->
+                drawIcon(node)
+                postInvalidate()
+                Thread.sleep(50)
+            }
+        }
+        isDisappear = true
+        scaleAnimator?.start()
     }
 
     override fun clearData() {
@@ -329,5 +348,6 @@ class GiftDrawView @JvmOverloads constructor(
         scaleAnimator.cancel()
         backgroundBitmap?.recycle()
         iconBitmap?.recycle()
+        handleNodeThread.quitSafely()
     }
 }
