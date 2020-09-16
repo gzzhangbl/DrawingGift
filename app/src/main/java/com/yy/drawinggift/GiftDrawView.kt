@@ -40,7 +40,6 @@ class GiftDrawView @JvmOverloads constructor(
     private var mHeight = 0
     private var mGiftRect = RectF()
 
-    //    private var mCurrentNode: GiftNode? = null
     private var iconWidth = 0
     private var iconHeight = 0
     private var maxDistance = 8
@@ -101,8 +100,8 @@ class GiftDrawView @JvmOverloads constructor(
         mY = if (mY > mHeight - halfIcHeight) mHeight - halfIcHeight else mY
         giftNodeLine = mutableListOf()
         GiftNode(mX, mY, iconUrl).let {
-            giftNodeLine!!.add(it!!)
-            drawIcon(it!!)
+            giftNodeLine!!.add(it)
+            drawIcon(it)
         }
         invalidate()
     }
