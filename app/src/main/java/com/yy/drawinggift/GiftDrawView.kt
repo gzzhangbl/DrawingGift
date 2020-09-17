@@ -5,15 +5,12 @@ import android.content.Context
 import android.graphics.*
 import android.os.Handler
 import android.os.HandlerThread
-import android.os.Looper
 import android.os.Message
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import kotlin.concurrent.thread
 import kotlin.math.abs
-import kotlin.math.atan2
 
 
 class GiftDrawView @JvmOverloads constructor(
@@ -345,6 +342,7 @@ class GiftDrawView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        clearData()
         scaleAnimator.cancel()
         backgroundBitmap?.recycle()
         iconBitmap?.recycle()
